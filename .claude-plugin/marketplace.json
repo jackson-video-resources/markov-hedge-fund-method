@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "markov-hedge-fund-method",
-      "source": ".",
+      "source": "./",
       "description": "Markov regime detection for any asset. Labels Bull/Bear/Sideways, builds the MLE transition matrix, forecasts n-step ahead, solves the stationary distribution, and runs a no-lookahead walk-forward backtest. Optional Hidden Markov Model upgrade."
     }
   ]
