@@ -1,0 +1,52 @@
+{
+  "skill": "regime",
+  "version": 1,
+  "created": "2026-06-04",
+  "model_baseline": "claude-opus-4-8",
+  "deterministic": true,
+  "runner": "uv run --with pytest --with numpy --with pandas pytest tests/ -q",
+  "notes": "Binary assertions per CLAUDE.md Rule #6. Unlike content skills these are NOT LLM-graded — each assertion is a deterministic pytest in tests/test_markov_regime.py that passes or fails. Re-run after model or dependency upgrades (Rule #13). The assertions lock the math claims README.md and SKILL.md make.",
+  "cases": [
+    {
+      "id": "transition-matrix",
+      "prompt": "Build the transition matrix for a synthetic bull/bear/sideways series.",
+      "assertions": [
+        { "id": "rows_sum_to_one", "check": "Every observed row of P sums to 1 and all entries are in [0,1]", "test": "test_transition_rows_sum_to_one" },
+        { "id": "mle_counts", "check": "P[i,j] equals count(i->j)/count(i->*) — a plain MLE estimate", "test": "test_transition_matrix_is_mle_counts" }
+      ]
+    },
+    {
+      "id": "stationary-distribution",
+      "prompt": "Solve the long-run regime mix.",
+      "assertions": [
+        { "id": "fixed_point", "check": "pi @ P == pi, pi >= 0, and pi sums to 1", "test": "test_stationary_is_fixed_point" },
+        { "id": "matches_matrix_power", "check": "pi matches a row of P^512 (Chapman-Kolmogorov convergence)", "test": "test_stationary_matches_high_matrix_power" }
+      ]
+    },
+    {
+      "id": "walk-forward-no-lookahead",
+      "prompt": "Run the walk-forward backtest and verify it does not peek at the future.",
+      "assertions": [
+        { "id": "incremental_equals_from_scratch", "check": "The O(n) running-counts path is bit-identical to an O(n^2) from-scratch rebuild that only ever reads labels[:t] — proving both no-lookahead and the 'bit-identical' claim", "test": "test_walk_forward_incremental_equals_from_scratch" },
+        { "id": "short_history_nan", "check": "Too little data yields NaN Sharpe and zero trades, no crash", "test": "test_walk_forward_short_history_is_nan" }
+      ]
+    },
+    {
+      "id": "labels-and-signal",
+      "prompt": "Label regimes and emit the signal.",
+      "assertions": [
+        { "id": "simple_return_thresholds", "check": "Labels use SIMPLE rolling return vs ±threshold (matching the Pine indicator); a clean +8%/-8% move produces Bull/Bear labels", "test": "test_label_uses_simple_return_thresholds" },
+        { "id": "signal_definition", "check": "signal == P(bull) - P(bear) and is bounded to [-1, 1]", "test": "test_signal_equals_bull_minus_bear_and_bounded" }
+      ]
+    },
+    {
+      "id": "data-loading-and-contract",
+      "prompt": "Load a user CSV and emit the JSON contract.",
+      "assertions": [
+        { "id": "csv_odd_columns", "check": "load_csv auto-detects 'Timestamp' + 'Adj Close' style headers", "test": "test_csv_autodetects_odd_column_names" },
+        { "id": "csv_single_numeric_fallback", "check": "load_csv falls back to the single numeric column when no named close column exists", "test": "test_csv_single_numeric_column_fallback" },
+        { "id": "json_contract_complete", "check": "analyze() emits every field documented in SKILL.md's JSON table", "test": "test_analyze_emits_full_json_contract" }
+      ]
+    }
+  ]
+}
