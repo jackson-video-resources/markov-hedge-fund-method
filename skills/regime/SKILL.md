@@ -133,4 +133,9 @@ Sanity-check it first with the printed walk-forward Sharpe + max drawdown
   net-positive over that window.
 - Defaults match the on-camera demo and the Pine Script bonus (window 20,
   ±5%). Use `--threshold 0.02` to reproduce the tighter labelling from the
-  original onboarding prompt.
+  original onboarding prompt. The Pine indicator labels off the same **simple
+  rolling return** as this engine, so the two agree bar-for-bar.
+- **Verified, not asserted.** The claims above (rows sum to 1, stationary is a
+  fixed point, no-lookahead, incremental backtest == from-scratch rebuild) are
+  locked by a deterministic test suite — see [`eval.json`](./eval.json) and run
+  `uv run --with pytest --with numpy --with pandas pytest tests/ -q`.

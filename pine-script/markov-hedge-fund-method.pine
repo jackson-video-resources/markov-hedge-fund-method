@@ -3,7 +3,7 @@
 // Markov Regime — Bull / Bear / Sideways
 // =============================================================================
 // Live, on-chart visualisation of the Markov regime framework.
-// Labels every bar Bull/Bear/Sideways using a rolling log-return rule, then
+// Labels every bar Bull/Bear/Sideways using a rolling-return rule, then
 // builds the 3x3 transition matrix and stationary distribution from visible
 // chart history and prints both as corner tables.
 //
@@ -40,9 +40,9 @@ grp_logic    = "Regime logic"
 grp_display  = "Display"
 grp_position = "Table positions"
 
-lookback_window    = input.int(20,   title = "Lookback window (bars)",        minval = 5,   maxval = 250, group = grp_logic, tooltip = "Number of bars used for the rolling log-return calculation.")
-bull_threshold_pct = input.float(5.0, title = "Bull threshold (%)",            minval = 0.1, maxval = 50.0, step = 0.1, group = grp_logic, tooltip = "Rolling log-return above this (in %) labels the bar Bull.")
-bear_threshold_pct = input.float(5.0, title = "Bear threshold (%)",            minval = 0.1, maxval = 50.0, step = 0.1, group = grp_logic, tooltip = "Rolling log-return below the negative of this (in %) labels the bar Bear. Set independently from Bull for asymmetric thresholds.")
+lookback_window    = input.int(20,   title = "Lookback window (bars)",        minval = 5,   maxval = 250, group = grp_logic, tooltip = "Number of bars used for the rolling-return calculation.")
+bull_threshold_pct = input.float(5.0, title = "Bull threshold (%)",            minval = 0.1, maxval = 50.0, step = 0.1, group = grp_logic, tooltip = "Rolling return above this (in %) labels the bar Bull.")
+bear_threshold_pct = input.float(5.0, title = "Bear threshold (%)",            minval = 0.1, maxval = 50.0, step = 0.1, group = grp_logic, tooltip = "Rolling return below the negative of this (in %) labels the bar Bear. Set independently from Bull for asymmetric thresholds.")
 stationary_power   = input.int(50,   title = "Stationary power (iterations)", minval = 10,  maxval = 200, group = grp_logic, tooltip = "How many times to multiply the matrix when computing the stationary distribution. 50 is essentially converged for any well-behaved 3x3 stochastic matrix.")
 
 show_regime_ribbon     = input.bool(true, title = "Show regime ribbon",            group = grp_display)
@@ -156,11 +156,14 @@ disp_to_internal(d) => d == 0 ? 1 : d == 1 ? 2 : 0
 // ────────────────────────────────────────────────────────────────────────────
 // Per-bar regime label
 //
-// log_ret = log(close / close[lookback]) — total log-return over the window.
+// roll_ret = close / close[lookback] - 1 — simple rolling return over the
+// window. This MATCHES the Python engine (pandas pct_change(window)) and the
+// on-camera onboarding prompt, so the indicator and the skill label identically;
+// a log-return rule diverges from the JSON contract near the thresholds.
 // regime: 0 = Sideways, 1 = Bull, 2 = Bear (integer encoding matches spec §3).
 // ────────────────────────────────────────────────────────────────────────────
-log_ret = math.log(close / close[lookback_window])
-regime  = na(log_ret) ? int(na) : log_ret > bull_threshold_pct / 100.0 ? 1 : log_ret < -bear_threshold_pct / 100.0 ? 2 : 0
+roll_ret = close / close[lookback_window] - 1.0
+regime   = na(roll_ret) ? int(na) : roll_ret > bull_threshold_pct / 100.0 ? 1 : roll_ret < -bear_threshold_pct / 100.0 ? 2 : 0
 
 // ────────────────────────────────────────────────────────────────────────────
 // Regime ribbon — subtle background tint per bar
@@ -315,9 +318,12 @@ if barstate.islast
         M := matmul_3x3(M, P)
 
     // Any row of converged M is the stationary distribution; take row 0.
-    stat_bull = array.get(M, 0)
-    stat_bear = array.get(M, 1)
-    stat_side = array.get(M, 2)
+    // M is indexed by the INTERNAL regime code (Side=0, Bull=1, Bear=2), so
+    // index through disp_to_internal() — same remap the matrix table uses —
+    // or each percentage lands under the wrong label.
+    stat_bull = array.get(M, disp_to_internal(0))
+    stat_bear = array.get(M, disp_to_internal(1))
+    stat_side = array.get(M, disp_to_internal(2))
 
     // ────────────────────────────────────────────────────────────────────────
     // Regime banner — top-left, single cell
